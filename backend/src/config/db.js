@@ -17,6 +17,11 @@ pool.on('connect', (client) => {
   client.query('SET client_encoding TO UTF8');
 });
 
+// 另外，可在获取连接时再设置一次（双保险）
+pool.on('acquire', (client) => {
+  client.query('SET client_encoding TO UTF8');
+});
+
 // 测试连接
 pool.connect((err, client, release) => {
   if (err) {
