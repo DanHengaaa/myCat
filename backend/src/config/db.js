@@ -12,6 +12,11 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
+// 🔧 新增：每次建立连接时设置客户端编码为 UTF8
+pool.on('connect', (client) => {
+  client.query('SET client_encoding TO UTF8');
+});
+
 // 测试连接
 pool.connect((err, client, release) => {
   if (err) {
