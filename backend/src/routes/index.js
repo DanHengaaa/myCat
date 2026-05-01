@@ -4,8 +4,8 @@ const router = express.Router();
 // 挂载各个模块的路由
 router.use('/users', require('./userRoutes'));
 router.use('/cats', require('./catRoutes'));   // 已有
-// router.use('/locations', require('./locationRoutes'));
-// router.use('/checkins', require('./checkinRoutes'));
+ router.use('/locations', require('./locationRoutes'));
+ router.use('/checkins', require('./checkinRoutes'));
 // router.use('/comments', require('./commentRoutes'));
 
 module.exports = router;

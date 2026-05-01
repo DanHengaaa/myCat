@@ -1,0 +1,9 @@
+{
+  "name": "大黄",
+  "gender": "公",
+  "color": "橘色",
+  "personality_tags": ["亲人", "贪吃"],
+  "health_status": "健康",
+  "neutered": true,
+  "description": "图书馆附近的大橘"
+}
