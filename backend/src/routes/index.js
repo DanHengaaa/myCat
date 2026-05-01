@@ -7,5 +7,6 @@ router.use('/cats', require('./catRoutes'));   // 已有
  router.use('/locations', require('./locationRoutes'));
  router.use('/checkins', require('./checkinRoutes'));
  router.use('/comments', require('./commentRoutes'));
+ router.use('/dashboard', require('./dashboardRoutes'));
 
 module.exports = router;
