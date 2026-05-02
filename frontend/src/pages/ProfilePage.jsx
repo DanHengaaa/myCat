@@ -2,8 +2,6 @@ import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { getProfile } from '../api/auth';
 import { getCheckins } from '../api/checkins';
-//import { getAchievements } from '../api/leaderboard'; // 我们之前把成就放在了 leaderboard 路由，但实际后端是 /achievements/me，需修正
-// 注意：我们之前后端实现了 achievements 接口，却在 leaderboard 路由中导出，实际应引用独立的 achievements api。为了简单，这里重新导入一个新的 achievements 文件，或者直接用 fetch。
 import api from '../api/index';
 
 export default function ProfilePage() {
@@ -15,8 +13,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     getProfile().then(res => setProfile(res.data));
-    getCheckins({ user_id: user.id }).then(res => setCheckins(res.data.checkins));
-    // 获取成就数据（使用api直接请求，因为可能没有在 api 文件中导出）
+    getCheckins({ user_id: user.id, limit: 50 }).then(res => setCheckins(res.data.checkins));
     api.get('/achievements/me').then(res => setAchievements(res.data));
   }, [user]);
 
@@ -48,15 +45,26 @@ export default function ProfilePage() {
 
       <div className="bg-white rounded shadow p-4">
         <h2 className="text-lg font-bold mb-2">我的打卡记录</h2>
-        {checkins.length === 0 ? <p className="text-gray-500">暂无记录</p> : (
+        {checkins.length === 0 ? (
+          <p className="text-gray-500">暂无记录</p>
+        ) : (
           checkins.map(ch => (
-            <div key={ch.id} className="border-b py-2">
-              <span className="text-sm text-gray-500">{new Date(ch.created_at).toLocaleString()}</span>
-              <span className="ml-2 px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800">{ch.type === 'sighting' ? '偶遇' : '投喂'}</span>
-              <span className={`ml-2 text-xs ${ch.status === 'approved' ? 'text-green-600' : ch.status === 'rejected' ? 'text-red-600' : 'text-yellow-600'}`}>
-                {ch.status === 'approved' ? '已通过' : ch.status === 'rejected' ? '已拒绝' : '待审核'}
-              </span>
-              <p className="mt-1">{ch.note}</p>
+            <div key={ch.id} className="border-b py-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">{new Date(ch.created_at).toLocaleString()}</span>
+                <span className={`px-2 py-0.5 rounded text-xs ${ch.type === 'sighting' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}`}>
+                  {ch.type === 'sighting' ? '偶遇' : '投喂'}
+                </span>
+              </div>
+              {/* 猫咪名称 */}
+              <p className="mt-1">
+                🐱 猫咪：<span className="font-medium">{ch.cat_name || '未知猫咪'}</span>
+              </p>
+              {/* 地点名称 */}
+              <p className="mt-1">
+                📍 地点：<span className="font-medium">{ch.location_name || '未知地点'}</span>
+              </p>
+              {ch.note && <p className="text-gray-600 mt-1">📝 {ch.note}</p>}
             </div>
           ))
         )}

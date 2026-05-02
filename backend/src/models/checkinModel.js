@@ -1,8 +1,5 @@
 const pool = require('../config/db');
 
-/**
- * 创建打卡记录
- */
 exports.create = async ({ userId, type, catId, locationId, photoUrl, note }) => {
   const sql = `
     INSERT INTO checkins (user_id, type, cat_id, location_id, photo_url, note, status)
@@ -10,19 +7,11 @@ exports.create = async ({ userId, type, catId, locationId, photoUrl, note }) => 
     RETURNING *
   `;
   const { rows } = await pool.query(sql, [
-    userId,
-    type,              // 'sighting' 或 'feeding'
-    catId || null,
-    locationId || null,
-    photoUrl || null,
-    note || null
+    userId, type, catId || null, locationId || null, photoUrl || null, note || null
   ]);
   return rows[0];
 };
 
-/**
- * 多条件查询打卡记录（分页）
- */
 exports.findMany = async ({ catId, userId, type, status, page = 1, limit = 20 }) => {
   const conditions = [];
   const values = [];
@@ -52,13 +41,16 @@ exports.findMany = async ({ catId, userId, type, status, page = 1, limit = 20 })
   const { rows: countRows } = await pool.query(countSql, values);
   const total = parseInt(countRows[0].count);
 
+  // 关键修改：增加 LEFT JOIN locations 获取地点名称
   const dataSql = `
     SELECT ch.*,
            u.username, u.nickname AS user_nickname,
-           c.name AS cat_name
+           c.name AS cat_name,
+           l.name AS location_name
     FROM checkins ch
     LEFT JOIN users u ON ch.user_id = u.id
     LEFT JOIN cats c ON ch.cat_id = c.id
+    LEFT JOIN locations l ON ch.location_id = l.id
     ${where}
     ORDER BY ch.created_at DESC
     LIMIT $${idx++} OFFSET $${idx++}
@@ -69,23 +61,15 @@ exports.findMany = async ({ catId, userId, type, status, page = 1, limit = 20 })
   return { total, page, limit, checkins: rows };
 };
 
-/**
- * 审核打卡（管理员）
- */
 exports.review = async (id, status, reviewerId) => {
   const sql = `
-    UPDATE checkins
-    SET status = $1, reviewer_id = $2, reviewed_at = CURRENT_TIMESTAMP
-    WHERE id = $3
-    RETURNING *
+    UPDATE checkins SET status = $1, reviewer_id = $2, reviewed_at = CURRENT_TIMESTAMP
+    WHERE id = $3 RETURNING *
   `;
   const { rows } = await pool.query(sql, [status, reviewerId, id]);
   return rows[0];
 };
 
-/**
- * 获取轨迹数据（某个猫咪的打卡坐标列表，用于行踪可视化）
- */
 exports.getTrajectory = async (catId) => {
   const sql = `
     SELECT ch.created_at, l.latitude, l.longitude

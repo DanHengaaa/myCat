@@ -1,3 +1,5 @@
+const pool = require('../config/db');
+
 exports.getUserAchievements = async (userId) => {
   const sql = `
     SELECT c.id AS cat_id, c.name, c.color, c.main_photo_url,
