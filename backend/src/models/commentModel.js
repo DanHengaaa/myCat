@@ -34,3 +34,9 @@ exports.remove = async (commentId) => {
   const { rows } = await pool.query(sql, [commentId]);
   return rows[0];
 };
+
+exports.findById = async (commentId) => {
+  const sql = `SELECT * FROM comments WHERE id = $1`;
+  const { rows } = await pool.query(sql, [commentId]);
+  return rows[0];
+};

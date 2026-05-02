@@ -48,6 +48,18 @@ export default function CatDetailPage() {
     getComments('cat', id).then(res => setComments(res.data.comments));
   };
 
+  // 删除评论
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('确定要删除这条评论吗？')) return;
+    try {
+      await api.delete(`/comments/${commentId}`);
+      alert('评论已删除');
+      refreshComments();
+    } catch (err) {
+      alert(err.response?.data?.message || '删除失败');
+    }
+  };
+
   const handleSubmitComment = async () => {
     if (!content.trim()) return;
     setSubmitting(true);
@@ -84,7 +96,6 @@ export default function CatDetailPage() {
     setCommentPhoto(file || null);
   };
 
-  // 编辑表单处理
   const handleEditChange = (e) => {
     const { name, value, type, checked } = e.target;
     setEditForm(prev => ({
@@ -229,18 +240,28 @@ export default function CatDetailPage() {
         )}
 
         {comments.map(c => (
-          <div key={c.id} className="bg-white rounded p-3 mb-2 shadow-sm">
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>{c.user_nickname}</span>
-              <span>{new Date(c.created_at).toLocaleDateString()}</span>
+          <div key={c.id} className="bg-white rounded p-3 mb-2 shadow-sm flex justify-between items-start">
+            <div className="flex-1">
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>{c.user_nickname}</span>
+                <span>{new Date(c.created_at).toLocaleDateString()}</span>
+              </div>
+              <p className="mt-1">{c.content}</p>
+              {c.photo_url && (
+                <img
+                  src={c.photo_url.startsWith('http') ? c.photo_url : `http://localhost:5000${c.photo_url}`}
+                  alt="评论图片"
+                  style={{ maxWidth: '200px', maxHeight: '150px', marginTop: '8px', borderRadius: '6px' }}
+                />
+              )}
             </div>
-            <p className="mt-1">{c.content}</p>
-            {c.photo_url && (
-              <img
-                src={c.photo_url.startsWith('http') ? c.photo_url : `http://localhost:5000${c.photo_url}`}
-                alt="评论图片"
-                style={{ maxWidth: '200px', maxHeight: '150px', marginTop: '8px', borderRadius: '6px' }}
-              />
+            {user && (user.id === c.user_id || user.role === 'admin') && (
+              <button
+                onClick={() => handleDeleteComment(c.id)}
+                className="ml-3 text-red-500 text-sm hover:underline shrink-0"
+              >
+                删除
+              </button>
             )}
           </div>
         ))}

@@ -11,7 +11,7 @@ exports.create = async (req, res) => {
       targetType: target_type,
       targetId: target_id,
       content,
-      photoUrl: photo_url
+      photoUrl: photo_url || null,
     });
     res.status(201).json({ code: 201, message: '评论成功', data: comment });
   } catch (err) {
@@ -39,10 +39,18 @@ exports.list = async (req, res) => {
   }
 };
 
+// 登录用户可删除自己的评论，管理员可删除任意评论
 exports.remove = async (req, res) => {
   try {
-    const comment = await commentModel.remove(req.params.id);
-    if (!comment) return res.status(404).json({ code: 404, message: '评论不存在' });
+    const comment = await commentModel.findById(req.params.id);
+    if (!comment) {
+      return res.status(404).json({ code: 404, message: '评论不存在' });
+    }
+    // 仅作者本人或管理员可以删除
+    if (comment.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ code: 403, message: '无权删除此评论' });
+    }
+    await commentModel.remove(req.params.id);
     res.json({ code: 200, message: '评论已删除' });
   } catch (err) {
     console.error('删除评论出错:', err);
