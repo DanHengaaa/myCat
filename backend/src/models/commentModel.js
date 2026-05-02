@@ -1,12 +1,12 @@
 const pool = require('../config/db');
 
-exports.create = async ({ userId, targetType, targetId, content }) => {
+exports.create = async ({ userId, targetType, targetId, content, photoUrl }) => {
   const sql = `
-    INSERT INTO comments (user_id, target_type, target_id, content)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO comments (user_id, target_type, target_id, content, photo_url)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING *
   `;
-  const { rows } = await pool.query(sql, [userId, targetType, targetId, content]);
+  const { rows } = await pool.query(sql, [userId, targetType, targetId, content, photoUrl || null]);
   return rows[0];
 };
 

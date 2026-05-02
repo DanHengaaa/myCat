@@ -2,7 +2,7 @@ const commentModel = require('../models/commentModel');
 
 exports.create = async (req, res) => {
   try {
-    const { target_type, target_id, content } = req.body;
+    const { target_type, target_id, content, photo_url } = req.body;
     if (!['cat', 'checkin'].includes(target_type)) {
       return res.status(400).json({ code: 400, message: 'target_type 必须为 cat 或 checkin' });
     }
@@ -11,6 +11,7 @@ exports.create = async (req, res) => {
       targetType: target_type,
       targetId: target_id,
       content,
+      photoUrl: photo_url
     });
     res.status(201).json({ code: 201, message: '评论成功', data: comment });
   } catch (err) {

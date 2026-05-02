@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import { getCatDetail } from '../api/cats';
 import { getComments, postComment } from '../api/comments';
-import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import api from '../api/index';   // 上传用
 
 export default function CatDetailPage() {
   const { id } = useParams();
   const [cat, setCat] = useState(null);
   const [comments, setComments] = useState([]);
   const [content, setContent] = useState('');
+  const [commentPhoto, setCommentPhoto] = useState(null);   // 文件对象
+  const [submitting, setSubmitting] = useState(false);
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
@@ -19,15 +21,41 @@ export default function CatDetailPage() {
 
   const handleSubmitComment = async () => {
     if (!content.trim()) return;
+    setSubmitting(true);
     try {
-      await postComment({ target_type: 'cat', target_id: Number(id), content });
-      setContent('');
+      let photoUrl = '';
+      // 如果有图片，先上传
+      if (commentPhoto) {
+        const formData = new FormData();
+        formData.append('photo', commentPhoto);
+        const uploadRes = await api.post('/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        photoUrl = uploadRes.data.url;
+      }
+
+      await postComment({
+        target_type: 'cat',
+        target_id: Number(id),
+        content,
+        photo_url: photoUrl || null
+      });
+
       // 刷新评论列表
       const res = await getComments('cat', id);
       setComments(res.data.comments);
+      setContent('');
+      setCommentPhoto(null);
     } catch (err) {
       alert('评论失败');
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setCommentPhoto(file || null);
   };
 
   if (!cat) return <div className="p-4">加载中...</div>;
@@ -53,16 +81,31 @@ export default function CatDetailPage() {
       <div className="mt-8">
         <h2 className="text-xl font-bold mb-3">故事墙</h2>
         {user && (
-          <div className="flex gap-2 mb-4">
-            <input
-              className="flex-1 border rounded px-3 py-2"
+          <div className="mb-4 bg-gray-50 p-3 rounded-lg">
+            <textarea
+              className="w-full border rounded px-3 py-2 mb-2"
+              rows="2"
               placeholder="分享你和它的故事..."
               value={content}
               onChange={e => setContent(e.target.value)}
             />
-            <button onClick={handleSubmitComment} className="bg-green-600 text-white px-4 py-2 rounded">发布</button>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">📷 添加图片</span>
+                {commentPhoto && <span className="text-xs text-gray-500">{commentPhoto.name}</span>}
+              </label>
+              <button
+                onClick={handleSubmitComment}
+                disabled={submitting}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {submitting ? '发布中...' : '发布'}
+              </button>
+            </div>
           </div>
         )}
+
         {comments.map(c => (
           <div key={c.id} className="bg-white rounded p-3 mb-2 shadow-sm">
             <div className="flex justify-between text-sm text-gray-500">
@@ -70,6 +113,13 @@ export default function CatDetailPage() {
               <span>{new Date(c.created_at).toLocaleDateString()}</span>
             </div>
             <p className="mt-1">{c.content}</p>
+            {c.photo_url && (
+              <img
+                src={c.photo_url.startsWith('http') ? c.photo_url : `http://localhost:5000${c.photo_url}`}
+                alt="评论图片"
+                style={{ maxWidth: '200px', maxHeight: '150px', marginTop: '8px', borderRadius: '6px' }}
+              />
+            )}
           </div>
         ))}
       </div>
