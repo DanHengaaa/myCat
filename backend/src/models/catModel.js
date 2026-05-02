@@ -172,3 +172,56 @@ exports.findPending = async () => {
   const { rows } = await pool.query(sql);
   return rows;
 };
+
+// 提交编辑请求
+exports.submitEditRequest = async (id, changes) => {
+  const sql = `UPDATE cats SET pending_changes = $1 WHERE id = $2 RETURNING *`;
+  const { rows } = await pool.query(sql, [JSON.stringify(changes), id]);
+  return rows[0];
+};
+
+// 获取所有有 pending_changes 的猫咪（管理员用）
+exports.findPendingEdits = async () => {
+  const sql = `
+    SELECT c.*, u.username, u.nickname
+    FROM cats c
+    LEFT JOIN users u ON c.submitted_by = u.id
+    WHERE c.pending_changes IS NOT NULL
+    ORDER BY c.id
+  `;
+  const { rows } = await pool.query(sql);
+  return rows;
+};
+
+// 审核编辑：通过时合并字段，拒绝时清空
+exports.reviewEditRequest = async (id, action) => {
+  // 先获取当前 cat 和 pending_changes
+  const { rows: catRows } = await pool.query('SELECT * FROM cats WHERE id = $1', [id]);
+  if (catRows.length === 0) return null;
+  const cat = catRows[0];
+  if (!cat.pending_changes) return null;
+
+  if (action === 'approve') {
+    const changes = cat.pending_changes; // JSONB 会自动解析为对象
+    // 允许修改的字段列表
+    const allowedFields = ['name', 'gender', 'color', 'personality_tags', 'health_status', 'neutered', 'description', 'main_photo_url'];
+    const setClauses = [];
+    const values = [];
+    let idx = 1;
+    for (const key of allowedFields) {
+      if (changes[key] !== undefined) {
+        setClauses.push(`${key} = $${idx++}`);
+        values.push(changes[key]);
+      }
+    }
+    if (setClauses.length > 0) {
+      setClauses.push(`updated_at = CURRENT_TIMESTAMP`);
+      values.push(id);
+      await pool.query(`UPDATE cats SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+    }
+  }
+  // 无论通过或拒绝，都清空 pending_changes
+  const sql = `UPDATE cats SET pending_changes = NULL WHERE id = $1 RETURNING *`;
+  const { rows } = await pool.query(sql, [id]);
+  return rows[0];
+};

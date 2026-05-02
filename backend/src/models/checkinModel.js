@@ -74,3 +74,16 @@ exports.getTrajectory = async (catId) => {
   const { rows } = await pool.query(sql, [catId]);
   return rows;
 };
+
+
+exports.remove = async (id) => {
+  const sql = `DELETE FROM checkins WHERE id = $1 RETURNING *`;
+  const { rows } = await pool.query(sql, [id]);
+  return rows[0];
+};
+
+exports.findById = async (id) => {
+  const sql = `SELECT * FROM checkins WHERE id = $1`;
+  const { rows } = await pool.query(sql, [id]);
+  return rows[0];
+};

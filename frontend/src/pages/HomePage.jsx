@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { getCats } from '../api/cats';
 import { getLocations } from '../api/locations';
 import { getTodayCheckins } from '../api/checkins';
+import { AuthContext } from '../context/AuthContext';
 import CatCard from '../components/CatCard';
+import L from 'leaflet';
+import api from '../api/index';
 
 const TIANDITU_KEY = '01c5845db0eb91889d42399c5a5b4f16';
 
 export default function HomePage() {
+  const { user } = useContext(AuthContext);
   const [cats, setCats] = useState([]);
   const [locations, setLocations] = useState([]);
   const [todayCheckins, setTodayCheckins] = useState([]);
@@ -36,15 +40,27 @@ export default function HomePage() {
 
           {/* 固定点位 */}
           {locations.map(loc => (
-            <Marker key={`loc-${loc.id}`} position={[loc.latitude, loc.longitude]}>
-              <Popup>
-                <div>
-                  <h3 className="font-bold">{loc.name}</h3>
-                  <p>猫咪数量: {loc.cat_count}</p>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+  <Marker key={`loc-${loc.id}`} position={[loc.latitude, loc.longitude]}>
+    <Popup>
+      <div>
+        <h3 className="font-bold">{loc.name}</h3>
+        <p>猫咪数量: {loc.cat_count}</p>
+        {user && (
+          <button
+            onClick={() => {
+              api.put(`/locations/${loc.id}/request-delete`)
+                .then(() => alert('删除请求已提交，管理员审核后将移除该点位'))
+                .catch(() => alert('请求失败'));
+            }}
+            className="mt-2 text-xs text-red-500 underline"
+          >
+            请求删除此点位
+          </button>
+        )}
+      </div>
+    </Popup>
+  </Marker>
+))}
 
           {/* 今日打卡点 */}
           {(todayCheckins || []).map(ch => {

@@ -106,3 +106,19 @@ exports.todayWithCoords = async (req, res) => {
     res.status(500).json({ code: 500, message: '服务器错误' });
   }
 };
+
+exports.deleteOwn = async (req, res) => {
+  try {
+    // 先查找打卡记录，确保是本人
+    const checkin = await checkinModel.findById(req.params.id); // 需要先有 findById
+    if (!checkin) return res.status(404).json({ code: 404, message: '打卡记录不存在' });
+    if (checkin.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ code: 403, message: '无权删除' });
+    }
+    await checkinModel.remove(req.params.id);
+    res.json({ code: 200, message: '已删除' });
+  } catch (err) {
+    console.error('删除打卡记录出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};

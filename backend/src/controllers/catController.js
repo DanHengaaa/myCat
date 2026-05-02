@@ -161,3 +161,52 @@ exports.getPending = async (req, res) => {
     res.status(500).json({ code: 500, message: '服务器错误' });
   }
 };
+
+// 提交编辑请求
+exports.submitEditRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const changes = {};
+    // 只允许更新这些字段
+    const allowedFields = ['name', 'gender', 'color', 'personality_tags', 'health_status', 'neutered', 'description', 'main_photo_url'];
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) changes[key] = req.body[key];
+    }
+    if (Object.keys(changes).length === 0) {
+      return res.status(400).json({ code: 400, message: '没有可修改的字段' });
+    }
+    const cat = await catModel.submitEditRequest(id, changes);
+    if (!cat) return res.status(404).json({ code: 404, message: '猫咪不存在' });
+    res.json({ code: 200, message: '编辑请求已提交，等待管理员审核', data: cat });
+  } catch (err) {
+    console.error('提交编辑请求出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};
+
+// 获取待审核编辑列表
+exports.getPendingEdits = async (req, res) => {
+  try {
+    const cats = await catModel.findPendingEdits();
+    res.json({ code: 200, data: cats });
+  } catch (err) {
+    console.error('获取待编辑列表出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};
+
+// 审核编辑请求
+exports.reviewEditRequest = async (req, res) => {
+  try {
+    const { action } = req.body; // 'approve' | 'reject'
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ code: 400, message: '无效操作' });
+    }
+    const cat = await catModel.reviewEditRequest(req.params.id, action);
+    if (!cat) return res.status(404).json({ code: 404, message: '猫咪不存在或无待审核修改' });
+    res.json({ code: 200, message: action === 'approve' ? '修改已通过' : '修改已拒绝', data: cat });
+  } catch (err) {
+    console.error('审核编辑请求出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};

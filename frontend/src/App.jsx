@@ -12,6 +12,7 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import AddCatPage from './pages/AddCatPage';
 import AddLocationPage from './pages/AddLocationPage';
 import ReviewPage from './pages/ReviewPage';
+import EditCatPage from './pages/EditCatPage';    // ← 新增
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="/add-cat" element={<AddCatPage />} />
           <Route path="/add-location" element={<AddLocationPage />} />
           <Route path="/review" element={<ReviewPage />} />
+          <Route path="/cats/:id/edit" element={<EditCatPage />} />
         </Routes>
       </div>
     </AuthProvider>

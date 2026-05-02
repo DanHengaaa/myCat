@@ -114,3 +114,38 @@ exports.getPending = async (req, res) => {
     res.status(500).json({ code: 500, message: '服务器错误' });
   }
 };
+
+exports.requestDelete = async (req, res) => {
+  try {
+    const location = await locationModel.requestDelete(req.params.id);
+    if (!location) return res.status(404).json({ code: 404, message: '点位不存在' });
+    res.json({ code: 200, message: '删除请求已提交' });
+  } catch (err) {
+    console.error('请求删除点位出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};
+
+exports.getPendingDeletes = async (req, res) => {
+  try {
+    const locations = await locationModel.findPendingDeletes();
+    res.json({ code: 200, data: locations });
+  } catch (err) {
+    console.error('获取待删除点位出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};
+
+exports.reviewDeleteRequest = async (req, res) => {
+  try {
+    const { action } = req.body;
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ code: 400, message: '无效操作' });
+    }
+    const result = await locationModel.reviewDeleteRequest(req.params.id, action);
+    res.json({ code: 200, message: action === 'approve' ? '已删除' : '已取消删除请求', data: result.location });
+  } catch (err) {
+    console.error('审核删除点位出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};

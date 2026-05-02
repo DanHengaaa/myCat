@@ -17,5 +17,16 @@ router.put('/:id/review', requireAdmin, locCtrl.review);
 
 // 管理员查看待审核列表
 router.get('/admin/pending', requireAdmin, locCtrl.getPending);
+// 请求删除点位（登录用户）
+router.put('/:id/request-delete', requireUser, locCtrl.requestDelete);
+// 管理员获取待删除列表
+router.get('/admin/pending-deletes', requireAdmin, locCtrl.getPendingDeletes);
+// 管理员审核删除
+router.put('/:id/review-delete', requireAdmin, locCtrl.reviewDeleteRequest);
+
+
 
 module.exports = router;
+
+
+

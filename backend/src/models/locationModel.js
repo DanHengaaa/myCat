@@ -103,3 +103,32 @@ exports.findPending = async () => {
   const { rows } = await pool.query(sql);
   return rows;
 };
+
+// 请求删除点位
+exports.requestDelete = async (id) => {
+  const sql = `UPDATE locations SET delete_requested = TRUE WHERE id = $1 RETURNING *`;
+  const { rows } = await pool.query(sql, [id]);
+  return rows[0];
+};
+
+// 获取待删除点位
+exports.findPendingDeletes = async () => {
+  const sql = `SELECT l.*, u.username, u.nickname FROM locations l LEFT JOIN users u ON l.submitted_by = u.id WHERE l.delete_requested = TRUE`;
+  const { rows } = await pool.query(sql);
+  return rows;
+};
+
+// 审核删除请求
+exports.reviewDeleteRequest = async (id, action) => {
+  if (action === 'approve') {
+    // 真正删除
+    const sql = `DELETE FROM locations WHERE id = $1 RETURNING *`;
+    const { rows } = await pool.query(sql, [id]);
+    return { deleted: true, location: rows[0] };
+  } else {
+    // 拒绝：取消删除标记
+    const sql = `UPDATE locations SET delete_requested = FALSE WHERE id = $1 RETURNING *`;
+    const { rows } = await pool.query(sql, [id]);
+    return { deleted: false, location: rows[0] };
+  }
+};

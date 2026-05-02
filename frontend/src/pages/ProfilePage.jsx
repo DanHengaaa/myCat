@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { getProfile, updateProfile } from '../api/auth';
+import { getProfile } from '../api/auth';
 import { getCheckins } from '../api/checkins';
 import api from '../api/index';
 
@@ -26,9 +26,13 @@ export default function ProfilePage() {
       setNickname(res.data.nickname || '');
       setEmail(res.data.email || '');
     });
-    getCheckins({ user_id: user.id, limit: 50 }).then(res => setCheckins(res.data.checkins));
+    refreshCheckins();
     api.get('/achievements/me').then(res => setAchievements(res.data));
   }, [user]);
+
+  const refreshCheckins = () => {
+    getCheckins({ user_id: user.id, limit: 50 }).then(res => setCheckins(res.data.checkins));
+  };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -50,9 +54,8 @@ export default function ProfilePage() {
         setUpdateError('没有改动');
         return;
       }
-      const res = await updateProfile(data);
+      const res = await api.put('/users/me', data);
       setProfile(res.data);
-      // 更新 AuthContext 中的信息（如果存了的话）
       loginSuccess(res.data, localStorage.getItem('token'));
       setOldPassword('');
       setNewPassword('');
@@ -60,6 +63,17 @@ export default function ProfilePage() {
       setEditMode(false);
     } catch (err) {
       setUpdateError(err.response?.data?.message || '修改失败');
+    }
+  };
+
+  const handleDeleteCheckin = async (id) => {
+    if (!window.confirm('确定要删除这条打卡记录吗？')) return;
+    try {
+      await api.delete(`/checkins/${id}`);
+      alert('打卡记录已删除');
+      refreshCheckins();  // 刷新列表
+    } catch (err) {
+      alert('删除失败');
     }
   };
 
@@ -92,44 +106,21 @@ export default function ProfilePage() {
             {updateSuccess && <p className="text-green-600 text-sm">{updateSuccess}</p>}
             <div>
               <label className="block text-sm mb-1">昵称</label>
-              <input
-                className="w-full border rounded px-3 py-2"
-                value={nickname}
-                onChange={e => setNickname(e.target.value)}
-              />
+              <input className="w-full border rounded px-3 py-2" value={nickname} onChange={e => setNickname(e.target.value)} />
             </div>
             <div>
               <label className="block text-sm mb-1">邮箱</label>
-              <input
-                className="w-full border rounded px-3 py-2"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-              />
+              <input className="w-full border rounded px-3 py-2" type="email" value={email} onChange={e => setEmail(e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm mb-1">旧密码（如需改密码）</label>
-              <input
-                className="w-full border rounded px-3 py-2"
-                type="password"
-                value={oldPassword}
-                onChange={e => setOldPassword(e.target.value)}
-                placeholder="不改密码留空"
-              />
+              <label className="block text-sm mb-1">旧密码（不改密码留空）</label>
+              <input className="w-full border rounded px-3 py-2" type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)} />
             </div>
             <div>
               <label className="block text-sm mb-1">新密码</label>
-              <input
-                className="w-full border rounded px-3 py-2"
-                type="password"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                placeholder="不改密码留空"
-              />
+              <input className="w-full border rounded px-3 py-2" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
             </div>
-            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-              保存修改
-            </button>
+            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">保存修改</button>
           </form>
         )}
       </div>
@@ -157,16 +148,24 @@ export default function ProfilePage() {
           <p className="text-gray-500">暂无记录</p>
         ) : (
           checkins.map(ch => (
-            <div key={ch.id} className="border-b py-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">{new Date(ch.created_at).toLocaleString()}</span>
-                <span className={`px-2 py-0.5 rounded text-xs ${ch.type === 'sighting' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}`}>
-                  {ch.type === 'sighting' ? '偶遇' : '投喂'}
-                </span>
+            <div key={ch.id} className="border-b py-3 flex justify-between items-start">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">{new Date(ch.created_at).toLocaleString()}</span>
+                  <span className={`px-2 py-0.5 rounded text-xs ${ch.type === 'sighting' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}`}>
+                    {ch.type === 'sighting' ? '偶遇' : '投喂'}
+                  </span>
+                </div>
+                <p className="mt-1">🐱 猫咪：<span className="font-medium">{ch.cat_name || '未知猫咪'}</span></p>
+                <p className="mt-1">📍 地点：<span className="font-medium">{ch.location_name || '未知地点'}</span></p>
+                {ch.note && <p className="text-gray-600 mt-1">📝 {ch.note}</p>}
               </div>
-              <p className="mt-1">🐱 猫咪：<span className="font-medium">{ch.cat_name || '未知猫咪'}</span></p>
-              <p className="mt-1">📍 地点：<span className="font-medium">{ch.location_name || '未知地点'}</span></p>
-              {ch.note && <p className="text-gray-600 mt-1">📝 {ch.note}</p>}
+              <button
+                onClick={() => handleDeleteCheckin(ch.id)}
+                className="text-red-500 text-sm hover:underline ml-4 shrink-0"
+              >
+                删除
+              </button>
             </div>
           ))
         )}

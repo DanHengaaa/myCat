@@ -12,6 +12,8 @@ router.get('/', checkinCtrl.list);
 // 今日打卡（需登录，放在 /:id 之前避免被当成 id）
 router.get('/today', requireUser, checkinCtrl.todayWithCoords);
 
+router.delete('/:id', requireUser, checkinCtrl.deleteOwn);  // 放在 /:id/review 之前
+
 // 管理员审核
 router.put('/:id/review', requireAdmin, checkinCtrl.review);
 
