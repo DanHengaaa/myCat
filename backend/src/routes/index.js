@@ -10,5 +10,6 @@ router.use('/cats', require('./catRoutes'));   // 已有
  router.use('/dashboard', require('./dashboardRoutes'));
  router.use('/leaderboard', require('./leaderboardRoutes'));
 router.use('/achievements', require('./achievementRoutes'));
+router.use('/upload', require('./uploadRoutes'));
 
 module.exports = router;

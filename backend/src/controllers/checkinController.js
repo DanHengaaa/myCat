@@ -33,7 +33,16 @@ exports.create = async (req, res) => {
  */
 exports.list = async (req, res) => {
   try {
-    const result = await checkinModel.findMany(req.query);
+    // 将前端蛇形参数映射为 model 所需的驼峰参数
+    const { cat_id, user_id, type, status, page, limit } = req.query;
+    const result = await checkinModel.findMany({
+      catId: cat_id,
+      userId: user_id,
+      type,
+      status,
+      page,
+      limit,
+    });
     res.json({ code: 200, data: result });
   } catch (err) {
     console.error('查询打卡记录出错:', err);
