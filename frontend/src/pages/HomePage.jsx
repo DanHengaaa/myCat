@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { getCats } from '../api/cats';
 import { getLocations } from '../api/locations';
@@ -10,7 +10,7 @@ import api from '../api/index';
 
 const TIANDITU_KEY = '01c5845db0eb91889d42399c5a5b4f16';
 
-// 固定点位的蓝色图标（与原来一致）
+// 固定点位图标
 const fixedIcon = new L.Icon({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -20,40 +20,56 @@ const fixedIcon = new L.Icon({
   popupAnchor: [1, -34],
 });
 
-// 打卡点的绿色圆形图标（带猫爪表情）
-const checkinIcon = L.divIcon({
-  className: '',
-  html: '<div style="background-color:#4CAF50; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-size:16px;">🐾</div>',
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-});
-
 export default function HomePage() {
   const { user } = useContext(AuthContext);
   const [cats, setCats] = useState([]);
   const [locations, setLocations] = useState([]);
   const [todayCheckins, setTodayCheckins] = useState([]);
+  const mapRef = useRef(null);           // 地图实例的引用
+
+  const initialCenter = [31.9165, 118.781];
+  const initialZoom = 17;
 
   useEffect(() => {
     getCats({ limit: 200 }).then(res => setCats(res.data.cats));
     getLocations().then(res => setLocations(res.data));
     getTodayCheckins()
-      .then(response => {
-        const data = response.data || [];
-        setTodayCheckins(data);
-      })
+      .then(response => setTodayCheckins(response.data || []))
       .catch(() => setTodayCheckins([]));
   }, []);
 
+  // 重置视图
+  const handleResetView = () => {
+    if (mapRef.current) {
+      mapRef.current.flyTo(initialCenter, initialZoom);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-64px)]">
-      <div className="flex-1 min-w-0">
-        <MapContainer center={[31.9165, 118.781]} zoom={17} style={{ height: '100%', width: '100%' }}>
+      {/* 左侧地图区域 */}
+      <div className="flex-1 min-w-0 relative">
+        {/* 重置按钮 */}
+        <button
+  onClick={handleResetView}
+  className="absolute left-3 z-[1000] bg-white hover:bg-gray-100 text-gray-700 p-2 rounded shadow-md border border-gray-300"
+  style={{ top: '80px' }}
+  title="重置地图视图"
+>
+  🏠
+</button>
+
+        <MapContainer
+          ref={mapRef}
+          center={initialCenter}
+          zoom={initialZoom}
+          style={{ height: '100%', width: '100%' }}
+        >
           <TileLayer
             url={`https://t0.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${TIANDITU_KEY}`}
           />
 
-          {/* 固定点位：蓝色图标 */}
+          {/* 固定点位 */}
           {locations.map(loc => (
             <Marker key={`loc-${loc.id}`} position={[loc.latitude, loc.longitude]} icon={fixedIcon}>
               <Popup>
@@ -77,14 +93,33 @@ export default function HomePage() {
             </Marker>
           ))}
 
-          {/* 今日打卡点：绿色猫爪图标，弹窗自适应图片 */}
+          {/* 今日打卡点 */}
           {(todayCheckins || []).map(ch => {
             const lat = parseFloat(ch.latitude);
             const lng = parseFloat(ch.longitude);
             if (!lat || !lng) return null;
+
+            const catPhotoUrl = ch.cat_photo
+              ? (ch.cat_photo.startsWith('http') ? ch.cat_photo : `http://localhost:5000${ch.cat_photo}`)
+              : null;
+
+            const icon = catPhotoUrl
+              ? L.divIcon({
+                  className: '',
+                  html: `<div style="width:40px;height:40px;border-radius:50%;background-image:url(${catPhotoUrl});background-size:cover;background-position:center;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.4);"></div>`,
+                  iconSize: [40, 40],
+                  iconAnchor: [20, 20],
+                })
+              : L.divIcon({
+                  className: '',
+                  html: '<div style="background-color:#4CAF50; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-size:16px;">🐾</div>',
+                  iconSize: [28, 28],
+                  iconAnchor: [14, 14],
+                });
+
             return (
-              <Marker key={`ch-${ch.id}`} position={[lat, lng]} icon={checkinIcon}>
-                <Popup maxWidth={400} minWidth={200} className="checkin-popup">
+              <Marker key={`ch-${ch.id}`} position={[lat, lng]} icon={icon}>
+                <Popup maxWidth={400} minWidth={200}>
                   <div style={{ maxWidth: '100%' }}>
                     <p className="font-semibold">
                       {ch.user_nickname || '匿名'} {ch.type === 'sighting' ? '偶遇' : '投喂'}
@@ -107,6 +142,7 @@ export default function HomePage() {
         </MapContainer>
       </div>
 
+      {/* 右侧猫咪档案 */}
       <div className="w-80 lg:w-96 overflow-y-auto bg-white shadow-lg p-4">
         <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white pb-2 border-b">🐱 猫咪档案</h2>
         {cats.length === 0 ? (

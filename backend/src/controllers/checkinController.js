@@ -89,16 +89,17 @@ exports.todayWithCoords = async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     const sql = `
-      SELECT ch.*, u.nickname AS user_nickname, c.name AS cat_name,
-             COALESCE(ch.latitude, l.latitude) AS latitude,
-             COALESCE(ch.longitude, l.longitude) AS longitude
-      FROM checkins ch
-      LEFT JOIN users u ON ch.user_id = u.id
-      LEFT JOIN cats c ON ch.cat_id = c.id
-      LEFT JOIN locations l ON ch.location_id = l.id
-      WHERE ch.created_at::date = $1
-      ORDER BY ch.created_at DESC
-    `;
+  SELECT ch.*, u.nickname AS user_nickname, c.name AS cat_name,
+         COALESCE(ch.latitude, l.latitude) AS latitude,
+         COALESCE(ch.longitude, l.longitude) AS longitude,
+         c.main_photo_url AS cat_photo
+  FROM checkins ch
+  LEFT JOIN users u ON ch.user_id = u.id
+  LEFT JOIN cats c ON ch.cat_id = c.id
+  LEFT JOIN locations l ON ch.location_id = l.id
+  WHERE ch.created_at::date = $1
+  ORDER BY ch.created_at DESC
+`;
     const { rows } = await pool.query(sql, [today]);
     res.json({ code: 200, data: rows });
   } catch (err) {
