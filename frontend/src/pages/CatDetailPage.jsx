@@ -21,7 +21,9 @@ export default function CatDetailPage() {
   // 编辑相关
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
+  const [editPhotoFile, setEditPhotoFile] = useState(null);   // 新选择的照片文件
   const [editError, setEditError] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   useEffect(() => {
     refreshCat();
@@ -41,6 +43,7 @@ export default function CatDetailPage() {
         description: res.data.description || '',
         main_photo_url: res.data.main_photo_url || '',
       });
+      setEditPhotoFile(null);   // 重置
     });
   };
 
@@ -60,6 +63,7 @@ export default function CatDetailPage() {
     }
   };
 
+  // 提交评论
   const handleSubmitComment = async () => {
     if (!content.trim()) return;
     setSubmitting(true);
@@ -91,11 +95,7 @@ export default function CatDetailPage() {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setCommentPhoto(file || null);
-  };
-
+  // 编辑表单处理
   const handleEditChange = (e) => {
     const { name, value, type, checked } = e.target;
     setEditForm(prev => ({
@@ -104,29 +104,53 @@ export default function CatDetailPage() {
     }));
   };
 
+  // 选择新照片
+  const handleEditFileChange = (e) => {
+    const file = e.target.files[0];
+    setEditPhotoFile(file || null);
+  };
+
+  // 提交编辑请求
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
     setEditError('');
-    const tags = editForm.personality_tags
-      .split(/[,，、]/)
-      .map(t => t.trim())
-      .filter(Boolean);
-    const payload = {
-      name: editForm.name,
-      gender: editForm.gender,
-      color: editForm.color,
-      personality_tags: tags,
-      health_status: editForm.health_status,
-      neutered: editForm.neutered,
-      description: editForm.description,
-      main_photo_url: editForm.main_photo_url || null,
-    };
+    setEditSubmitting(true);
+
     try {
+      const tags = editForm.personality_tags
+        .split(/[,，、]/)
+        .map(t => t.trim())
+        .filter(Boolean);
+
+      // 先上传新照片（如果有）
+      let photoUrl = editForm.main_photo_url; // 默认用原来的链接
+      if (editPhotoFile) {
+        const formData = new FormData();
+        formData.append('photo', editPhotoFile);
+        const uploadRes = await api.post('/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        photoUrl = uploadRes.data.url;
+      }
+
+      const payload = {
+        name: editForm.name,
+        gender: editForm.gender,
+        color: editForm.color,
+        personality_tags: tags,
+        health_status: editForm.health_status,
+        neutered: editForm.neutered,
+        description: editForm.description,
+        main_photo_url: photoUrl || null,
+      };
+
       await api.put(`/cats/${id}/edit-request`, payload);
       alert('编辑请求已提交，管理员审核后将更新档案。');
       setEditing(false);
     } catch (err) {
       setEditError(err.response?.data?.message || '提交失败');
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -143,6 +167,13 @@ export default function CatDetailPage() {
             <p className="text-gray-600">性格: {cat.personality_tags?.join(', ')}</p>
             <p className="text-gray-600">健康: {cat.health_status} | {cat.neutered ? '已绝育' : '未绝育'}</p>
             {cat.description && <p className="mt-2">{cat.description}</p>}
+            {cat.main_photo_url && (
+              <img
+                src={cat.main_photo_url.startsWith('http') ? cat.main_photo_url : `http://localhost:5000${cat.main_photo_url}`}
+                alt={cat.name}
+                className="mt-3 rounded-lg max-h-48 object-cover"
+              />
+            )}
             {cat.locations && cat.locations.length > 0 && (
               <div className="mt-4">
                 <h3 className="font-semibold">常驻地</h3>
@@ -198,11 +229,24 @@ export default function CatDetailPage() {
                 <textarea name="description" value={editForm.description} onChange={handleEditChange} rows="3" className="w-full border rounded px-3 py-2" />
               </div>
               <div>
-                <label className="block mb-1">代表照片链接（可选）</label>
-                <input name="main_photo_url" value={editForm.main_photo_url} onChange={handleEditChange} className="w-full border rounded px-3 py-2" />
+                <label className="block mb-1">当前照片</label>
+                {editForm.main_photo_url ? (
+                  <img
+                    src={editForm.main_photo_url.startsWith('http') ? editForm.main_photo_url : `http://localhost:5000${editForm.main_photo_url}`}
+                    alt="当前照片"
+                    className="h-24 object-cover rounded border mb-2"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-500">暂无照片</p>
+                )}
+                <label className="block mb-1">上传新照片（可选）</label>
+                <input type="file" accept="image/*" onChange={handleEditFileChange} className="w-full border rounded px-3 py-2 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700" />
+                {editPhotoFile && <p className="text-xs text-gray-500 mt-1">已选择：{editPhotoFile.name}</p>}
               </div>
               <div className="flex gap-3">
-                <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">提交编辑请求</button>
+                <button type="submit" disabled={editSubmitting} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
+                  {editSubmitting ? '提交中...' : '提交编辑请求'}
+                </button>
                 <button type="button" onClick={() => { setEditing(false); setEditError(''); }} className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">取消</button>
               </div>
             </div>
@@ -224,7 +268,7 @@ export default function CatDetailPage() {
             />
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                <input type="file" accept="image/*" onChange={(e) => setCommentPhoto(e.target.files[0])} className="hidden" />
                 <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">📷 添加图片</span>
                 {commentPhoto && <span className="text-xs text-gray-500">{commentPhoto.name}</span>}
               </label>
