@@ -1,14 +1,13 @@
-// 猫咪数据库操作
 const pool = require('../config/db');
 
 /**
- * 创建猫咪档案
+ * 创建猫咪档案（默认状态为 pending）
  */
 exports.create = async (catData) => {
-  const { name, gender, color, personality_tags, health_status, neutered, description, main_photo_url } = catData;
+  const { name, gender, color, personality_tags, health_status, neutered, description, main_photo_url, userId } = catData;
   const sql = `
-    INSERT INTO cats (name, gender, color, personality_tags, health_status, neutered, description, main_photo_url)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    INSERT INTO cats (name, gender, color, personality_tags, health_status, neutered, description, main_photo_url, status, submitted_by)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9)
     RETURNING *
   `;
   const { rows } = await pool.query(sql, [
@@ -19,20 +18,20 @@ exports.create = async (catData) => {
     health_status || null,
     neutered || false,
     description || null,
-    main_photo_url || null
+    main_photo_url || null,
+    userId || null
   ]);
   return rows[0];
 };
 
 /**
- * 分页查询猫咪列表（可选筛选）
- * @param {Object} filters - { page, limit, gender, neutered }
+ * 分页查询已通过的猫咪列表
  */
 exports.findAll = async (filters = {}) => {
   const page = parseInt(filters.page) || 1;
   const limit = parseInt(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const conditions = [];
+  const conditions = ['status = \'approved\''];
   const values = [];
   let paramIndex = 1;
 
@@ -45,14 +44,12 @@ exports.findAll = async (filters = {}) => {
     values.push(filters.neutered === 'true' || filters.neutered === true);
   }
 
-  const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+  const whereClause = 'WHERE ' + conditions.join(' AND ');
 
-  // 查询总数
   const countSql = `SELECT COUNT(*) FROM cats ${whereClause}`;
   const { rows: countRows } = await pool.query(countSql, values);
   const total = parseInt(countRows[0].count);
 
-  // 查询数据
   const dataSql = `
     SELECT * FROM cats
     ${whereClause}
@@ -66,16 +63,14 @@ exports.findAll = async (filters = {}) => {
 };
 
 /**
- * 根据 ID 获取猫咪详情，同时返回常驻点位
+ * 根据 ID 获取猫咪详情（仅已通过）
  */
 exports.findById = async (id) => {
-  // 查询猫咪基本信息
-  const catSql = `SELECT * FROM cats WHERE id = $1`;
+  const catSql = `SELECT * FROM cats WHERE id = $1 AND status = 'approved'`;
   const { rows: catRows } = await pool.query(catSql, [id]);
   if (catRows.length === 0) return null;
   const cat = catRows[0];
 
-  // 查询常驻点位
   const locSql = `
     SELECT l.id, l.name, l.latitude, l.longitude, l.description
     FROM locations l
@@ -103,9 +98,8 @@ exports.update = async (id, catData) => {
       idx++;
     }
   }
-  if (fields.length === 0) return null; // 无可更新字段
+  if (fields.length === 0) return null;
 
-  // 自动更新 updated_at
   fields.push(`updated_at = CURRENT_TIMESTAMP`);
   values.push(id);
   const sql = `
@@ -118,7 +112,7 @@ exports.update = async (id, catData) => {
 };
 
 /**
- * 删除猫咪（CASCADE 会自动删除关联的 cat_locations、打卡、评论等）
+ * 删除猫咪
  */
 exports.remove = async (id) => {
   const sql = `DELETE FROM cats WHERE id = $1 RETURNING *`;
@@ -127,7 +121,7 @@ exports.remove = async (id) => {
 };
 
 /**
- * 为猫咪添加常驻点位
+ * 添加常驻点位
  */
 exports.addLocation = async (catId, locationId) => {
   const sql = `
@@ -141,7 +135,7 @@ exports.addLocation = async (catId, locationId) => {
 };
 
 /**
- * 移除猫咪常驻点位
+ * 移除常驻点位
  */
 exports.removeLocation = async (catId, locationId) => {
   const sql = `
@@ -151,4 +145,30 @@ exports.removeLocation = async (catId, locationId) => {
   `;
   const { rows } = await pool.query(sql, [catId, locationId]);
   return rows[0];
+};
+
+// ========== 新增：审核与待审核列表 ==========
+
+/**
+ * 审核猫咪（管理员）
+ */
+exports.review = async (id, status) => {
+  const sql = `UPDATE cats SET status = $1 WHERE id = $2 RETURNING *`;
+  const { rows } = await pool.query(sql, [status, id]);
+  return rows[0];
+};
+
+/**
+ * 获取待审核猫咪列表（管理员）
+ */
+exports.findPending = async () => {
+  const sql = `
+    SELECT c.*, u.username, u.nickname
+    FROM cats c
+    LEFT JOIN users u ON c.submitted_by = u.id
+    WHERE c.status = 'pending'
+    ORDER BY c.created_at DESC
+  `;
+  const { rows } = await pool.query(sql);
+  return rows;
 };

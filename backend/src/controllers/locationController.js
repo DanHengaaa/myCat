@@ -1,5 +1,8 @@
 const locationModel = require('../models/locationModel');
 
+/**
+ * 获取所有已通过的点位 (公开)
+ */
 exports.getAll = async (req, res) => {
   try {
     const locations = await locationModel.findAll();
@@ -10,6 +13,9 @@ exports.getAll = async (req, res) => {
   }
 };
 
+/**
+ * 获取点位详情 (公开)
+ */
 exports.getById = async (req, res) => {
   try {
     const location = await locationModel.findById(req.params.id);
@@ -23,20 +29,32 @@ exports.getById = async (req, res) => {
   }
 };
 
+/**
+ * 创建点位（任何登录用户）
+ */
 exports.create = async (req, res) => {
   try {
     const { name, latitude, longitude, description } = req.body;
     if (!name || latitude === undefined || longitude === undefined) {
       return res.status(400).json({ code: 400, message: '缺少必填字段：name, latitude, longitude' });
     }
-    const location = await locationModel.create({ name, latitude, longitude, description });
-    res.status(201).json({ code: 201, message: '点位创建成功', data: location });
+    const location = await locationModel.create({
+      name,
+      latitude,
+      longitude,
+      description,
+      userId: req.user.id
+    });
+    res.status(201).json({ code: 201, message: '点位已提交，等待管理员审核', data: location });
   } catch (err) {
     console.error('创建点位出错:', err);
     res.status(500).json({ code: 500, message: '服务器错误' });
   }
 };
 
+/**
+ * 更新点位（管理员）
+ */
 exports.update = async (req, res) => {
   try {
     const location = await locationModel.update(req.params.id, req.body);
@@ -50,6 +68,9 @@ exports.update = async (req, res) => {
   }
 };
 
+/**
+ * 删除点位（管理员）
+ */
 exports.remove = async (req, res) => {
   try {
     const location = await locationModel.remove(req.params.id);
@@ -59,6 +80,37 @@ exports.remove = async (req, res) => {
     res.json({ code: 200, message: '点位已删除' });
   } catch (err) {
     console.error('删除点位出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};
+
+/**
+ * 审核点位（管理员）
+ */
+exports.review = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ code: 400, message: '审核状态无效，必须为 approved 或 rejected' });
+    }
+    const updated = await locationModel.review(req.params.id, status);
+    if (!updated) return res.status(404).json({ code: 404, message: '点位不存在' });
+    res.json({ code: 200, message: '审核完成', data: updated });
+  } catch (err) {
+    console.error('审核点位出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};
+
+/**
+ * 获取待审核点位列表（管理员）
+ */
+exports.getPending = async (req, res) => {
+  try {
+    const pending = await locationModel.findPending();
+    res.json({ code: 200, data: pending });
+  } catch (err) {
+    console.error('获取待审核点位出错:', err);
     res.status(500).json({ code: 500, message: '服务器错误' });
   }
 };

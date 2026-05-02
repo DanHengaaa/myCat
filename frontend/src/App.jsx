@@ -10,6 +10,8 @@ import ProfilePage from './pages/ProfilePage';
 import DashboardPage from './pages/DashboardPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AddCatPage from './pages/AddCatPage';
+import AddLocationPage from './pages/AddLocationPage';
+import ReviewPage from './pages/ReviewPage';
 
 function App() {
   return (
@@ -25,7 +27,9 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
-          <Route path="/admin/add-cat" element={<AddCatPage />} />
+          <Route path="/add-cat" element={<AddCatPage />} />
+          <Route path="/add-location" element={<AddLocationPage />} />
+          <Route path="/review" element={<ReviewPage />} />
         </Routes>
       </div>
     </AuthProvider>

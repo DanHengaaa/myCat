@@ -37,8 +37,9 @@ exports.getById = async (req, res) => {
  */
 exports.create = async (req, res) => {
   try {
-    const cat = await catModel.create(req.body);
-    res.status(201).json({ code: 201, message: '猫咪档案创建成功', data: cat });
+    const catData = { ...req.body, userId: req.user.id }; // 将提交者ID传入
+    const cat = await catModel.create(catData);
+    res.status(201).json({ code: 201, message: '猫咪档案已提交，等待管理员审核', data: cat });
   } catch (err) {
     console.error('创建猫咪出错:', err);
     res.status(500).json({ code: 500, message: '服务器错误' });
@@ -110,6 +111,53 @@ exports.removeLocation = async (req, res) => {
     res.json({ code: 200, message: '点位关联已移除' });
   } catch (err) {
     console.error('移除点位出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};
+
+exports.review = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ code: 400, message: '审核状态无效' });
+    }
+    const cat = await catModel.review(req.params.id, status);
+    if (!cat) return res.status(404).json({ code: 404, message: '猫咪不存在' });
+    res.json({ code: 200, message: '审核完成', data: cat });
+  } catch (err) { /* ... */ }
+};
+
+// ... 原有的 getAll, getById, create, update, remove, addLocation, removeLocation 保持不变
+
+/**
+ * 审核猫咪（管理员）
+ */
+exports.review = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ code: 400, message: '审核状态无效，必须为 approved 或 rejected' });
+    }
+    const cat = await catModel.review(req.params.id, status);
+    if (!cat) {
+      return res.status(404).json({ code: 404, message: '猫咪不存在' });
+    }
+    res.json({ code: 200, message: '审核完成', data: cat });
+  } catch (err) {
+    console.error('审核猫咪出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};
+
+/**
+ * 获取待审核猫咪列表（管理员）
+ */
+exports.getPending = async (req, res) => {
+  try {
+    const cats = await catModel.findPending();
+    res.json({ code: 200, data: cats });
+  } catch (err) {
+    console.error('获取待审核猫咪出错:', err);
     res.status(500).json({ code: 500, message: '服务器错误' });
   }
 };

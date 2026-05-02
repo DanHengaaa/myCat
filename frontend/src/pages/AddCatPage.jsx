@@ -17,11 +17,12 @@ export default function AddCatPage() {
     neutered: false,
     description: '',
   });
-  const [photoFile, setPhotoFile] = useState(null);   // 选中的文件
+  const [photoFile, setPhotoFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
-  if (!user || user.role !== 'admin') {
+  // 未登录跳转
+  if (!user) {
     navigate('/login');
     return null;
   }
@@ -48,7 +49,6 @@ export default function AddCatPage() {
 
     try {
       let photoUrl = '';
-      // 如果选择了照片，先上传
       if (photoFile) {
         setUploading(true);
         const formData = new FormData();
@@ -59,13 +59,11 @@ export default function AddCatPage() {
         photoUrl = uploadRes.data.url;
       }
 
-      // 处理标签
       const tags = form.personality_tags
         .split(/[,，、]/)
         .map(t => t.trim())
         .filter(Boolean);
 
-      // 创建猫咪
       await createCat({
         name: form.name,
         gender: form.gender,
@@ -77,7 +75,7 @@ export default function AddCatPage() {
         main_photo_url: photoUrl || null
       });
 
-      alert('猫咪档案创建成功！');
+      alert('猫咪档案已提交，审核通过后将在首页展示');
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || '操作失败');

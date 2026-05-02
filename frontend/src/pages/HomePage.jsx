@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { getCats } from '../api/cats';
 import { getLocations } from '../api/locations';
 import CatCard from '../components/CatCard';
 
-const TIANDITU_KEY = '01c5845db0eb91889d42399c5a5b4f16';
-
-function MapWithLocations() {
-  const map = useMap();
-  // 可在此调整地图中心等，暂时不需要
-  return null;
-}
+const TIANDITU_KEY = '01c5845db0eb91889d42399c5a5b4f16';   // ← 替换成你的真实密钥
 
 export default function HomePage() {
   const [cats, setCats] = useState([]);
@@ -22,9 +16,14 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
-      <div className="h-1/2 w-full">
-        <MapContainer center={[39.9042, 116.4074]} zoom={15} style={{ height: '100%', width: '100%' }}>
+    <div className="flex h-[calc(100vh-64px)]">
+      {/* ========== 左侧地图 ========== */}
+      <div className="flex-1 min-w-0">
+        <MapContainer
+  center={[31.92, 118.79]}   // 河海大学江宁校区
+  zoom={16}                   // 更聚焦校园
+  style={{ height: '100%', width: '100%' }}
+>
           <TileLayer
             url={`https://t0.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${TIANDITU_KEY}`}
           />
@@ -38,14 +37,23 @@ export default function HomePage() {
               </Popup>
             </Marker>
           ))}
-          <MapWithLocations />
         </MapContainer>
       </div>
-      <div className="p-4 overflow-y-auto">
-        <h2 className="text-lg font-bold mb-2">校园猫咪档案</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {cats.map(cat => <CatCard key={cat.id} cat={cat} />)}
-        </div>
+
+      {/* ========== 右侧猫咪档案 ========== */}
+      <div className="w-80 lg:w-96 overflow-y-auto bg-white shadow-lg p-4">
+        <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white pb-2 border-b">
+          🐱 猫咪档案
+        </h2>
+        {cats.length === 0 ? (
+          <p className="text-gray-400 text-center mt-10">暂无猫咪数据</p>
+        ) : (
+          <div className="space-y-3">
+            {cats.map(cat => (
+              <CatCard key={cat.id} cat={cat} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
-const pool = require('../config/db');
+const pool = require('../config/db');   // ← 最关键的一行，之前漏了
 
 /**
- * 猫咪排行榜：按打卡次数降序
+ * 猫咪排行榜：只统计已通过审核的猫
  */
 exports.getCatLeaderboard = async (limit = 10) => {
   const sql = `
@@ -9,6 +9,7 @@ exports.getCatLeaderboard = async (limit = 10) => {
            COUNT(ch.id)::int AS checkin_count
     FROM cats c
     LEFT JOIN checkins ch ON c.id = ch.cat_id
+    WHERE c.status = 'approved'
     GROUP BY c.id
     ORDER BY checkin_count DESC
     LIMIT $1
@@ -18,10 +19,10 @@ exports.getCatLeaderboard = async (limit = 10) => {
 };
 
 /**
- * 用户排行榜：按打卡/投喂次数降序（可指定类型）
- * @param {string} type - 'sighting', 'feeding', 或 'all'
+ * 用户排行榜：可按类型过滤
+ * 参数顺序：(type, limit)
  */
-exports.getUserLeaderboard = async (limit = 10, type = 'all') => {
+exports.getUserLeaderboard = async (type = 'all', limit = 10) => {
   let sql = `
     SELECT u.id AS user_id, u.username, u.nickname,
            COUNT(ch.id)::int AS checkin_count

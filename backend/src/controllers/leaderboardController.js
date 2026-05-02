@@ -15,7 +15,7 @@ exports.userLeaderboard = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const type = req.query.type || 'all';   // all, sighting, feeding
-    const data = await leaderboardModel.getUserLeaderboard(limit, type);
+    const data = await leaderboardModel.getUserLeaderboard(type, limit);
     res.json({ code: 200, data });
   } catch (err) {
     console.error('用户排行榜出错:', err);

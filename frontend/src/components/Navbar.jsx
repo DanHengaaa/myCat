@@ -20,8 +20,14 @@ export default function Navbar() {
           <>
             <Link to="/checkin" className="text-blue-600">打卡</Link>
             <Link to="/profile" className="text-gray-600">{user.nickname}</Link>
-            <Link to="/admin/add-cat" className="text-green-600">添加猫咪</Link>
-            {user.role === 'admin' && <Link to="/dashboard" className="text-red-500">管理</Link>}
+            <Link to="/add-cat" className="text-green-600">添加猫咪</Link>
+            <Link to="/add-location" className="text-green-600">添加点位</Link>
+            {user.role === 'admin' && (
+              <>
+                <Link to="/review" className="text-orange-500">审核管理</Link>
+                <Link to="/dashboard" className="text-red-500">数据看板</Link>
+              </>
+            )}
             <button onClick={handleLogout} className="text-gray-400">退出</button>
           </>
         ) : (
