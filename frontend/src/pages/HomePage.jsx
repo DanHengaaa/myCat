@@ -47,26 +47,41 @@ export default function HomePage() {
           ))}
 
           {/* 今日打卡点 */}
-          {todayCheckins.map(ch => {
-            const lat = ch.latitude || ch.location_latitude || null;
-            const lng = ch.longitude || ch.location_longitude || null;
-            if (lat == null || lng == null) return null;
-            return (
-              <Marker key={`ch-${ch.id}`} position={[lat, lng]}
-                icon={new L.Icon({ iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png', iconSize: [20, 30], iconAnchor: [10, 30] })}>
-                <Popup>
-                  <div>
-                    <p className="font-semibold">{ch.user_nickname} {ch.type === 'sighting' ? '偶遇' : '投喂'}</p>
-                    {ch.cat_name && <p>🐱 {ch.cat_name}</p>}
-                    {ch.note && <p>📝 {ch.note}</p>}
-                    <p className="text-xs text-gray-500">{new Date(ch.created_at).toLocaleTimeString()}</p>
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          })}
+          {(todayCheckins || []).map(ch => {
+  const lat = parseFloat(ch.latitude);
+  const lng = parseFloat(ch.longitude);
+  if (!lat || !lng) return null;
+  return (
+    <Marker key={`ch-${ch.id}`} position={[lat, lng]}
+      icon={new L.Icon({
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        iconSize: [20, 30],
+        iconAnchor: [10, 30],
+      })}
+    >
+      <Popup>
+        <div>
+          <p className="font-semibold">{ch.user_nickname || '匿名'} {ch.type === 'sighting' ? '偶遇' : '投喂'}</p>
+          {ch.cat_name && <p>🐱 {ch.cat_name}</p>}
+          {ch.note && <p>📝 {ch.note}</p>}
+          {ch.photo_url && (
+            <img
+              src={ch.photo_url.startsWith('http') ? ch.photo_url : `http://localhost:5000${ch.photo_url}`}
+              alt="打卡照片"
+              style={{ maxWidth: '200px', maxHeight: '150px', marginTop: '8px', borderRadius: '6px', display: 'block' }}
+            />
+          )}
+          <p className="text-xs text-gray-500">{new Date(ch.created_at).toLocaleTimeString()}</p>
+        </div>
+      </Popup>
+    </Marker>
+  );
+})}
         </MapContainer>
       </div>
+
+
+
 
       <div className="w-80 lg:w-96 overflow-y-auto bg-white shadow-lg p-4">
         <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white pb-2 border-b">🐱 猫咪档案</h2>

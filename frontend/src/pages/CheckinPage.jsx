@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createCheckin } from '../api/checkins';
 import { getCats } from '../api/cats';
 import { getLocations } from '../api/locations';
+import api from '../api/index';                // 引入 axios 实例
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 const TIANDITU_KEY = '01c5845db0eb91889d42399c5a5b4f16';
@@ -28,12 +29,11 @@ export default function CheckinPage() {
   const [note, setNote] = useState('');
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);   // 新增上传状态
 
   const [cats, setCats] = useState([]);
   const [locations, setLocations] = useState([]);
-
-  const [userCoords, setUserCoords] = useState(null); // GPS or picked
-  const [manualCoords, setManualCoords] = useState(null);
+  const [userCoords, setUserCoords] = useState(null);
   const [locating, setLocating] = useState(true);
 
   useEffect(() => {
@@ -41,13 +41,11 @@ export default function CheckinPage() {
     getLocations().then(res => setLocations(res.data));
   }, []);
 
-  // GPS
   useEffect(() => {
     if (!navigator.geolocation) { setLocating(false); return; }
     navigator.geolocation.getCurrentPosition(
       pos => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setUserCoords(coords);
+        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setLocating(false);
       },
       () => setLocating(false),
@@ -55,7 +53,6 @@ export default function CheckinPage() {
     );
   }, []);
 
-  // 自动匹配最近点位（当用户坐标变化时）
   useEffect(() => {
     if (!userCoords || locations.length === 0) return;
     let minDist = Infinity, nearestId = '';
@@ -67,15 +64,26 @@ export default function CheckinPage() {
   }, [userCoords, locations]);
 
   const handleMapClick = (latlng) => {
-    const coords = { lat: latlng.lat, lng: latlng.lng };
-    setManualCoords(true);
-    setUserCoords(coords);
+    setUserCoords({ lat: latlng.lat, lng: latlng.lng });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setUploading(true);
     try {
+      let photoUrl = '';
+      // 如果有照片，先上传
+      if (photo) {
+        const formData = new FormData();
+        formData.append('photo', photo);
+        const uploadRes = await api.post('/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        photoUrl = uploadRes.data.url;   // 例如 /uploads/photo-xxx.jpg
+      }
+
+      // 然后创建打卡记录
       await createCheckin({
         type,
         cat_id: catId ? parseInt(catId) : null,
@@ -83,12 +91,14 @@ export default function CheckinPage() {
         note,
         latitude: userCoords?.lat,
         longitude: userCoords?.lng,
-        photo_url: photo ? URL.createObjectURL(photo) : ''
+        photo_url: photoUrl || null
       });
       alert('打卡成功！');
       navigate('/profile');
     } catch (err) {
       setError(err.response?.data?.message || '打卡失败');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -141,7 +151,9 @@ export default function CheckinPage() {
           <label className="block mb-1">照片</label>
           <input type="file" accept="image/*" capture="environment" onChange={e => setPhoto(e.target.files[0])} className="w-full border rounded px-3 py-2" />
         </div>
-        <button className="w-full bg-green-600 text-white py-2 rounded">提交打卡</button>
+        <button type="submit" disabled={uploading} className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 disabled:opacity-50">
+          {uploading ? '上传中...' : '提交打卡'}
+        </button>
       </form>
     </div>
   );
