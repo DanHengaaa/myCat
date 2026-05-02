@@ -123,3 +123,29 @@ exports.deleteOwn = async (req, res) => {
     res.status(500).json({ code: 500, message: '服务器错误' });
   }
 };
+
+exports.heatmap = async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const sql = `
+      SELECT ch.latitude, ch.longitude
+      FROM checkins ch
+      JOIN locations l ON ch.location_id = l.id
+      WHERE ch.latitude IS NOT NULL AND ch.longitude IS NOT NULL
+        AND ch.created_at >= NOW() - INTERVAL '${days} days'
+      UNION ALL
+      SELECT ch.latitude, ch.longitude
+      FROM checkins ch
+      WHERE ch.location_id IS NULL
+        AND ch.latitude IS NOT NULL AND ch.longitude IS NOT NULL
+        AND ch.created_at >= NOW() - INTERVAL '${days} days'
+    `;
+    const { rows } = await pool.query(sql);
+    // 返回格式：[[lat, lng, intensity], ...]
+    const points = rows.map(row => [row.latitude, row.longitude, 1]); // 强度固定为1，也可根据 type 加权
+    res.json({ code: 200, data: points });
+  } catch (err) {
+    console.error('获取热力数据失败:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};

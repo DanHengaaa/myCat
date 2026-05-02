@@ -5,6 +5,9 @@ import App from './App';
 import './index.css';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import 'leaflet.heat';   // 它会把自己挂到 L 上
+
+// ... 其他代码
 
 // 修复 Leaflet 默认图标路径（打包后相对路径会失效）
 delete L.Icon.Default.prototype._getIconUrl;
