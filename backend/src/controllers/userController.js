@@ -114,3 +114,42 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({ code: 500, message: '服务器内部错误' });
   }
 };
+
+/**
+ * 更新当前用户个人信息
+ * PUT /api/users/me
+ */
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { nickname, email, oldPassword, newPassword } = req.body;
+
+    const updateData = {};
+    if (nickname !== undefined) updateData.nickname = nickname;
+    if (email !== undefined) updateData.email = email;
+
+    // 如果要修改密码
+    if (newPassword) {
+      if (!oldPassword) {
+        return res.status(400).json({ code: 400, message: '修改密码需要提供旧密码' });
+      }
+      const user = await userModel.findByUsername(req.user.username);
+      const valid = await bcrypt.compare(oldPassword, user.password_hash);
+      if (!valid) {
+        return res.status(400).json({ code: 400, message: '旧密码错误' });
+      }
+      const hashed = await bcrypt.hash(newPassword, 10);
+      updateData.passwordHash = hashed;
+    }
+
+    const updatedUser = await userModel.updateProfile(userId, updateData);
+    if (!updatedUser) {
+      return res.status(400).json({ code: 400, message: '没有可更新的字段' });
+    }
+
+    res.json({ code: 200, message: '信息更新成功', data: updatedUser });
+  } catch (err) {
+    console.error('更新个人信息出错:', err);
+    res.status(500).json({ code: 500, message: '服务器错误' });
+  }
+};

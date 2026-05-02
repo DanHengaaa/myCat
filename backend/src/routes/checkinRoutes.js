@@ -3,11 +3,14 @@ const router = express.Router();
 const checkinCtrl = require('../controllers/checkinController');
 const { requireUser, requireAdmin } = require('../middleware/auth');
 
-// 认证用户
+// 用户打卡
 router.post('/', requireUser, checkinCtrl.create);
 
-// 查询（公开，但查看 pending 可能需要管理员权限，简单起见先全部公开）
+// 查询打卡记录（公开）
 router.get('/', checkinCtrl.list);
+
+// 今日打卡（需登录，放在 /:id 之前避免被当成 id）
+router.get('/today', requireUser, checkinCtrl.todayWithCoords);
 
 // 管理员审核
 router.put('/:id/review', requireAdmin, checkinCtrl.review);

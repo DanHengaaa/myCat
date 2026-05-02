@@ -2,33 +2,41 @@ import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { getCats } from '../api/cats';
 import { getLocations } from '../api/locations';
+import { getTodayCheckins } from '../api/checkins';
 import CatCard from '../components/CatCard';
 
-const TIANDITU_KEY = '01c5845db0eb91889d42399c5a5b4f16';   // ← 替换成你的真实密钥
+const TIANDITU_KEY = '01c5845db0eb91889d42399c5a5b4f16';
 
 export default function HomePage() {
   const [cats, setCats] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [todayCheckins, setTodayCheckins] = useState([]);
 
   useEffect(() => {
     getCats({ limit: 200 }).then(res => setCats(res.data.cats));
     getLocations().then(res => setLocations(res.data));
+    getTodayCheckins()
+    .then(response => {
+      console.log('今日打卡原始数据:', response);
+      // 确保收到的数据是数组
+      const data = response.data || [];
+      setTodayCheckins(data);
+    })
+    .catch(err => {
+      console.error('获取今日打卡失败:', err);
+      setTodayCheckins([]);
+    });
   }, []);
 
   return (
     <div className="flex h-[calc(100vh-64px)]">
-      {/* ========== 左侧地图 ========== */}
       <div className="flex-1 min-w-0">
-        <MapContainer
-  center={[31.92, 118.79]}   // 河海大学江宁校区
-  zoom={16}                   // 更聚焦校园
-  style={{ height: '100%', width: '100%' }}
->
-          <TileLayer
-            url={`https://t0.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${TIANDITU_KEY}`}
-          />
+        <MapContainer center={[31.9165, 118.781]} zoom={17} style={{ height: '100%', width: '100%' }}>
+          <TileLayer url={`https://t0.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={x}&TILEROW={y}&TILEMATRIX={z}&tk=${TIANDITU_KEY}`} />
+
+          {/* 固定点位 */}
           {locations.map(loc => (
-            <Marker key={loc.id} position={[loc.latitude, loc.longitude]}>
+            <Marker key={`loc-${loc.id}`} position={[loc.latitude, loc.longitude]}>
               <Popup>
                 <div>
                   <h3 className="font-bold">{loc.name}</h3>
@@ -37,21 +45,36 @@ export default function HomePage() {
               </Popup>
             </Marker>
           ))}
+
+          {/* 今日打卡点 */}
+          {todayCheckins.map(ch => {
+            const lat = ch.latitude || ch.location_latitude || null;
+            const lng = ch.longitude || ch.location_longitude || null;
+            if (lat == null || lng == null) return null;
+            return (
+              <Marker key={`ch-${ch.id}`} position={[lat, lng]}
+                icon={new L.Icon({ iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png', iconSize: [20, 30], iconAnchor: [10, 30] })}>
+                <Popup>
+                  <div>
+                    <p className="font-semibold">{ch.user_nickname} {ch.type === 'sighting' ? '偶遇' : '投喂'}</p>
+                    {ch.cat_name && <p>🐱 {ch.cat_name}</p>}
+                    {ch.note && <p>📝 {ch.note}</p>}
+                    <p className="text-xs text-gray-500">{new Date(ch.created_at).toLocaleTimeString()}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
         </MapContainer>
       </div>
 
-      {/* ========== 右侧猫咪档案 ========== */}
       <div className="w-80 lg:w-96 overflow-y-auto bg-white shadow-lg p-4">
-        <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white pb-2 border-b">
-          🐱 猫咪档案
-        </h2>
+        <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white pb-2 border-b">🐱 猫咪档案</h2>
         {cats.length === 0 ? (
           <p className="text-gray-400 text-center mt-10">暂无猫咪数据</p>
         ) : (
           <div className="space-y-3">
-            {cats.map(cat => (
-              <CatCard key={cat.id} cat={cat} />
-            ))}
+            {cats.map(cat => <CatCard key={cat.id} cat={cat} />)}
           </div>
         )}
       </div>

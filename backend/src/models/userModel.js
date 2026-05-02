@@ -29,3 +29,33 @@ exports.findByUsername = async (username) => {
   const { rows } = await pool.query(sql, [username]);
   return rows[0] || null;
 };
+
+/**
+ * 更新用户个人信息
+ */
+exports.updateProfile = async (userId, { nickname, email, passwordHash }) => {
+  const fields = [];
+  const values = [];
+  let idx = 1;
+
+  if (nickname !== undefined) {
+    fields.push(`nickname = $${idx++}`); values.push(nickname);
+  }
+  if (email !== undefined) {
+    fields.push(`email = $${idx++}`); values.push(email);
+  }
+  if (passwordHash !== undefined) {
+    fields.push(`password_hash = $${idx++}`); values.push(passwordHash);
+  }
+
+  if (fields.length === 0) return null;
+
+  values.push(userId);
+  const sql = `
+    UPDATE users SET ${fields.join(', ')}
+    WHERE id = $${idx}
+    RETURNING id, username, nickname, email, role, avatar_url, created_at
+  `;
+  const { rows } = await pool.query(sql, values);
+  return rows[0];
+};

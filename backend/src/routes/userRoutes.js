@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const userController = require('../controllers/userController');
+const userCtrl = require('../controllers/userController');
 const { requireUser } = require('../middleware/auth');
 
-// 公开接口
-router.post('/register', userController.register);
-router.post('/login', userController.login);
+router.post('/register', userCtrl.register);
+router.post('/login', userCtrl.login);
 
-// 需要登录的接口
-router.get('/me', requireUser, userController.getProfile);
+// 需要登录
+router.get('/me', requireUser, userCtrl.getProfile);
+router.put('/me', requireUser, userCtrl.updateProfile);   // ← 新增
 
 module.exports = router;

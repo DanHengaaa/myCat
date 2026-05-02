@@ -1,37 +1,31 @@
 const pool = require('../config/db');
 
-exports.create = async ({ userId, type, catId, locationId, photoUrl, note }) => {
+exports.create = async ({ userId, type, catId, locationId, photoUrl, note, latitude, longitude }) => {
   const sql = `
-    INSERT INTO checkins (user_id, type, cat_id, location_id, photo_url, note, status)
-    VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+    INSERT INTO checkins (user_id, type, cat_id, location_id, photo_url, note, status, latitude, longitude)
+    VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, $8)
     RETURNING *
   `;
   const { rows } = await pool.query(sql, [
-    userId, type, catId || null, locationId || null, photoUrl || null, note || null
+    userId, type, catId || null, locationId || null, photoUrl || null, note || null,
+    latitude || null, longitude || null
   ]);
   return rows[0];
 };
 
-exports.findMany = async ({ catId, userId, type, status, page = 1, limit = 20 }) => {
+exports.findMany = async ({ catId, userId, type, status, page = 1, limit = 20, date }) => {
   const conditions = [];
   const values = [];
   let idx = 1;
 
-  if (catId) {
-    conditions.push(`ch.cat_id = $${idx++}`);
-    values.push(catId);
-  }
-  if (userId) {
-    conditions.push(`ch.user_id = $${idx++}`);
-    values.push(userId);
-  }
-  if (type) {
-    conditions.push(`ch.type = $${idx++}`);
-    values.push(type);
-  }
-  if (status) {
-    conditions.push(`ch.status = $${idx++}`);
-    values.push(status);
+  if (catId) { conditions.push(`ch.cat_id = $${idx++}`); values.push(catId); }
+  if (userId) { conditions.push(`ch.user_id = $${idx++}`); values.push(userId); }
+  if (type)   { conditions.push(`ch.type = $${idx++}`); values.push(type); }
+  if (status) { conditions.push(`ch.status = $${idx++}`); values.push(status); }
+  if (date) {
+    // date 格式 'YYYY-MM-DD'，匹配当天
+    conditions.push(`ch.created_at::date = $${idx++}`);
+    values.push(date);
   }
 
   const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
@@ -41,7 +35,6 @@ exports.findMany = async ({ catId, userId, type, status, page = 1, limit = 20 })
   const { rows: countRows } = await pool.query(countSql, values);
   const total = parseInt(countRows[0].count);
 
-  // 关键修改：增加 LEFT JOIN locations 获取地点名称
   const dataSql = `
     SELECT ch.*,
            u.username, u.nickname AS user_nickname,
